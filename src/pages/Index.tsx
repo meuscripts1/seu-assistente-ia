@@ -476,6 +476,16 @@ const Index = () => {
                 onChange={(e) => handleFiles(e.target.files)}
               />
               <Button
+                type="button"
+                size="icon"
+                variant={listening ? "destructive" : "ghost"}
+                onClick={toggleMic}
+                className="absolute right-12 bottom-2 h-8 w-8 rounded-lg"
+                aria-label="Falar"
+              >
+                {listening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+              </Button>
+              <Button
                 type="submit"
                 size="icon"
                 disabled={(!input.trim() && pending.length === 0) || isLoading}
