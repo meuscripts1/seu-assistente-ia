@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, FormEvent } from "react";
-import { Send, Plus, Sparkles, Moon, Sun, MessageSquare, Trash2, X, Image as ImageIcon, Video as VideoIcon, FileIcon } from "lucide-react";
+import { Send, Plus, Sparkles, Moon, Sun, MessageSquare, Trash2, X, Image as ImageIcon, Video as VideoIcon, FileIcon, Mic, MicOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
@@ -69,9 +69,43 @@ const Index = () => {
   const [pending, setPending] = useState<Attachment[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [dark, setDark] = useState(true);
+  const [listening, setListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const acceptRef = useRef<string>("*/*");
+
+  const toggleMic = () => {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) {
+      toast.error("Seu navegador não suporta reconhecimento de voz.");
+      return;
+    }
+    if (listening) {
+      recognitionRef.current?.stop();
+      return;
+    }
+    const rec = new SR();
+    rec.lang = "pt-BR";
+    rec.interimResults = true;
+    rec.continuous = false;
+    let baseText = input;
+    rec.onstart = () => setListening(true);
+    rec.onend = () => setListening(false);
+    rec.onerror = (e: any) => {
+      setListening(false);
+      if (e.error !== "no-speech") toast.error("Erro no microfone: " + e.error);
+    };
+    rec.onresult = (event: any) => {
+      let transcript = "";
+      for (let i = 0; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+      setInput((baseText ? baseText + " " : "") + transcript);
+    };
+    recognitionRef.current = rec;
+    rec.start();
+  };
 
   const active = conversations.find((c) => c.id === activeId) ?? null;
   const messages = active?.messages ?? [];
@@ -441,6 +475,16 @@ const Index = () => {
                 className="hidden"
                 onChange={(e) => handleFiles(e.target.files)}
               />
+              <Button
+                type="button"
+                size="icon"
+                variant={listening ? "destructive" : "ghost"}
+                onClick={toggleMic}
+                className="absolute right-12 bottom-2 h-8 w-8 rounded-lg"
+                aria-label="Falar"
+              >
+                {listening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+              </Button>
               <Button
                 type="submit"
                 size="icon"
