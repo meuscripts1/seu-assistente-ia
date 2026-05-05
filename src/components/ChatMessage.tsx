@@ -24,9 +24,7 @@ export const ChatMessage = ({ message }: { message: Message }) => {
             isUser ? (
               <ReactMarkdown>{message.content}</ReactMarkdown>
             ) : (
-              <div className="stream-reveal">
-                <ReactMarkdown>{message.content}</ReactMarkdown>
-              </div>
+              <AnimatedAssistant content={message.content} />
             )
           ) : (
             <div className="flex gap-1 items-center h-6">
