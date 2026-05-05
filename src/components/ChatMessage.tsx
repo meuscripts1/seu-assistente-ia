@@ -21,7 +21,13 @@ export const ChatMessage = ({ message }: { message: Message }) => {
         </div>
         <div className="flex-1 min-w-0 prose-chat">
           {message.content ? (
-            <ReactMarkdown>{message.content}</ReactMarkdown>
+            isUser ? (
+              <ReactMarkdown>{message.content}</ReactMarkdown>
+            ) : (
+              <div className="stream-reveal">
+                <ReactMarkdown>{message.content}</ReactMarkdown>
+              </div>
+            )
           ) : (
             <div className="flex gap-1 items-center h-6">
               <span className="typing-dot" />
