@@ -1,5 +1,41 @@
+import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { Bot, User } from "lucide-react";
+
+const AnimatedAssistant = ({ content }: { content: string }) => {
+  const [displayed, setDisplayed] = useState("");
+  const targetRef = useRef(content);
+  const rafRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    targetRef.current = content;
+    if (rafRef.current != null) return;
+
+    const step = () => {
+      setDisplayed((prev) => {
+        const target = targetRef.current;
+        if (prev.length >= target.length) {
+          rafRef.current = null;
+          return prev;
+        }
+        const remaining = target.length - prev.length;
+        const chunk = Math.max(1, Math.min(remaining, Math.ceil(remaining / 12)));
+        rafRef.current = requestAnimationFrame(step);
+        return target.slice(0, prev.length + chunk);
+      });
+    };
+    rafRef.current = requestAnimationFrame(step);
+
+    return () => {
+      if (rafRef.current != null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+    };
+  }, [content]);
+
+  return <ReactMarkdown>{displayed}</ReactMarkdown>;
+};
 
 export type Message = { role: "user" | "assistant"; content: string };
 
