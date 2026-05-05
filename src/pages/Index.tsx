@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, FormEvent } from "react";
-import { Send, Plus, Sparkles, Moon, Sun } from "lucide-react";
+import { Send, Plus, Sparkles, Moon, Sun, MessageSquare, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
@@ -14,12 +14,20 @@ const SUGGESTIONS = [
   { title: "Ajude-me a programar", subtitle: "em React e TypeScript" },
 ];
 
+type Conversation = { id: string; title: string; messages: Message[] };
+
+const newId = () => Math.random().toString(36).slice(2, 10);
+
 const Index = () => {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [dark, setDark] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const active = conversations.find((c) => c.id === activeId) ?? null;
+  const messages = active?.messages ?? [];
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", dark);
@@ -29,11 +37,33 @@ const Index = () => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
+  const updateConv = (id: string, updater: (c: Conversation) => Conversation) => {
+    setConversations((prev) => prev.map((c) => (c.id === id ? updater(c) : c)));
+  };
+
   const send = async (text: string) => {
-    if (!text.trim() || isLoading) return;
-    const userMsg: Message = { role: "user", content: text.trim() };
-    const next = [...messages, userMsg];
-    setMessages([...next, { role: "assistant", content: "" }]);
+    const trimmed = text.trim();
+    if (!trimmed || isLoading) return;
+
+    let convId = activeId;
+    let baseMessages: Message[] = messages;
+
+    if (!convId) {
+      convId = newId();
+      const title = trimmed.length > 40 ? trimmed.slice(0, 40) + "…" : trimmed;
+      const conv: Conversation = { id: convId, title, messages: [] };
+      setConversations((prev) => [conv, ...prev]);
+      setActiveId(convId);
+      baseMessages = [];
+    }
+
+    const userMsg: Message = { role: "user", content: trimmed };
+    const next = [...baseMessages, userMsg];
+    updateConv(convId, (c) => ({
+      ...c,
+      title: c.messages.length === 0 ? (trimmed.length > 40 ? trimmed.slice(0, 40) + "…" : trimmed) : c.title,
+      messages: [...next, { role: "assistant", content: "" }],
+    }));
     setInput("");
     setIsLoading(true);
 
@@ -51,7 +81,7 @@ const Index = () => {
         if (resp.status === 429) toast.error("Muitas requisições. Tente novamente em instantes.");
         else if (resp.status === 402) toast.error("Créditos esgotados. Adicione créditos ao seu workspace.");
         else toast.error("Erro ao gerar resposta.");
-        setMessages(next);
+        updateConv(convId, (c) => ({ ...c, messages: next }));
         setIsLoading(false);
         return;
       }
@@ -79,10 +109,10 @@ const Index = () => {
             const c = parsed.choices?.[0]?.delta?.content;
             if (c) {
               acc += c;
-              setMessages((prev) => {
-                const copy = [...prev];
+              updateConv(convId!, (cv) => {
+                const copy = [...cv.messages];
                 copy[copy.length - 1] = { role: "assistant", content: acc };
-                return copy;
+                return { ...cv, messages: copy };
               });
             }
           } catch {
@@ -94,7 +124,7 @@ const Index = () => {
     } catch (e) {
       console.error(e);
       toast.error("Falha de conexão.");
-      setMessages(next);
+      updateConv(convId, (c) => ({ ...c, messages: next }));
     } finally {
       setIsLoading(false);
     }
@@ -112,19 +142,49 @@ const Index = () => {
     }
   };
 
+  const startNew = () => {
+    setActiveId(null);
+    setInput("");
+  };
+
+  const deleteConv = (id: string) => {
+    setConversations((prev) => prev.filter((c) => c.id !== id));
+    if (activeId === id) setActiveId(null);
+  };
+
   return (
     <div className="flex h-screen bg-background text-foreground">
       {/* Sidebar */}
       <aside className="hidden md:flex flex-col w-64 bg-sidebar-bg border-r border-border p-3">
-        <Button
-          variant="outline"
-          className="w-full justify-start gap-2"
-          onClick={() => setMessages([])}
-        >
+        <Button variant="outline" className="w-full justify-start gap-2" onClick={startNew}>
           <Plus className="w-4 h-4" /> Nova conversa
         </Button>
-        <div className="flex-1 mt-4 text-sm text-muted-foreground px-2">
-          Suas conversas aparecerão aqui.
+        <div className="flex-1 mt-4 overflow-y-auto space-y-1">
+          {conversations.length === 0 ? (
+            <div className="text-sm text-muted-foreground px-2">
+              Suas conversas aparecerão aqui.
+            </div>
+          ) : (
+            conversations.map((c) => (
+              <div
+                key={c.id}
+                className={`group flex items-center gap-2 px-2 py-2 rounded-lg cursor-pointer transition ${
+                  c.id === activeId ? "bg-accent" : "hover:bg-accent/50"
+                }`}
+                onClick={() => setActiveId(c.id)}
+              >
+                <MessageSquare className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
+                <span className="flex-1 truncate text-sm">{c.title}</span>
+                <button
+                  onClick={(e) => { e.stopPropagation(); deleteConv(c.id); }}
+                  className="opacity-0 group-hover:opacity-100 transition text-muted-foreground hover:text-destructive"
+                  aria-label="Excluir conversa"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))
+          )}
         </div>
         <Button
           variant="ghost"
