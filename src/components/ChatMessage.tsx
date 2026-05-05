@@ -1,6 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { Bot, User } from "lucide-react";
+import { Bot, User, FileIcon, VideoIcon } from "lucide-react";
+
+export type Attachment = {
+  name: string;
+  type: string; // mime
+  kind: "image" | "video" | "file";
+  dataUrl: string; // for preview/display; images also sent to AI as base64
+  size: number;
+};
+
+export type Message = {
+  role: "user" | "assistant";
+  content: string;
+  attachments?: Attachment[];
+};
 
 const AnimatedAssistant = ({ content }: { content: string }) => {
   const [displayed, setDisplayed] = useState("");
@@ -37,7 +51,32 @@ const AnimatedAssistant = ({ content }: { content: string }) => {
   return <ReactMarkdown>{displayed}</ReactMarkdown>;
 };
 
-export type Message = { role: "user" | "assistant"; content: string };
+const AttachmentView = ({ a }: { a: Attachment }) => {
+  if (a.kind === "image") {
+    return (
+      <img
+        src={a.dataUrl}
+        alt={a.name}
+        className="max-w-xs max-h-64 rounded-lg border border-border object-cover"
+      />
+    );
+  }
+  if (a.kind === "video") {
+    return (
+      <video
+        src={a.dataUrl}
+        controls
+        className="max-w-xs max-h-64 rounded-lg border border-border"
+      />
+    );
+  }
+  return (
+    <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-muted/40 text-sm">
+      <FileIcon className="w-4 h-4 text-muted-foreground" />
+      <span className="truncate max-w-[200px]">{a.name}</span>
+    </div>
+  );
+};
 
 export const ChatMessage = ({ message }: { message: Message }) => {
   const isUser = message.role === "user";
@@ -56,19 +95,26 @@ export const ChatMessage = ({ message }: { message: Message }) => {
           )}
         </div>
         <div className="flex-1 min-w-0 prose-chat">
+          {message.attachments && message.attachments.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-3">
+              {message.attachments.map((a, i) => (
+                <AttachmentView key={i} a={a} />
+              ))}
+            </div>
+          )}
           {message.content ? (
             isUser ? (
               <ReactMarkdown>{message.content}</ReactMarkdown>
             ) : (
               <AnimatedAssistant content={message.content} />
             )
-          ) : (
+          ) : !message.attachments?.length ? (
             <div className="flex gap-1 items-center h-6">
               <span className="typing-dot" />
               <span className="typing-dot" />
               <span className="typing-dot" />
             </div>
-          )}
+          ) : null}
         </div>
       </div>
     </div>

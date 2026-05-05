@@ -1,9 +1,15 @@
 import { useEffect, useRef, useState, FormEvent } from "react";
-import { Send, Plus, Sparkles, Moon, Sun, MessageSquare, Trash2 } from "lucide-react";
+import { Send, Plus, Sparkles, Moon, Sun, MessageSquare, Trash2, X, Image as ImageIcon, Video as VideoIcon, FileIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { ChatMessage, type Message } from "@/components/ChatMessage";
+import { ChatMessage, type Message, type Attachment } from "@/components/ChatMessage";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
@@ -18,13 +24,54 @@ type Conversation = { id: string; title: string; messages: Message[] };
 
 const newId = () => Math.random().toString(36).slice(2, 10);
 
+const UPLOAD_LIMIT = 3;
+const UPLOAD_WINDOW_MS = 24 * 60 * 60 * 1000;
+const UPLOAD_KEY = "ia-br-uploads";
+
+type UploadRecord = { count: number; firstAt: number };
+
+const readUploads = (): UploadRecord => {
+  try {
+    const raw = localStorage.getItem(UPLOAD_KEY);
+    if (!raw) return { count: 0, firstAt: 0 };
+    const r = JSON.parse(raw) as UploadRecord;
+    if (Date.now() - r.firstAt > UPLOAD_WINDOW_MS) return { count: 0, firstAt: 0 };
+    return r;
+  } catch {
+    return { count: 0, firstAt: 0 };
+  }
+};
+
+const writeUploads = (r: UploadRecord) => {
+  localStorage.setItem(UPLOAD_KEY, JSON.stringify(r));
+};
+
+const formatRemaining = (ms: number) => {
+  const totalMin = Math.ceil(ms / 60000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h > 0) return `${h}h ${m}min`;
+  return `${m}min`;
+};
+
+const fileToDataUrl = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result as string);
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+
 const Index = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [input, setInput] = useState("");
+  const [pending, setPending] = useState<Attachment[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [dark, setDark] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const acceptRef = useRef<string>("*/*");
 
   const active = conversations.find((c) => c.id === activeId) ?? null;
   const messages = active?.messages ?? [];
@@ -41,31 +88,115 @@ const Index = () => {
     setConversations((prev) => prev.map((c) => (c.id === id ? updater(c) : c)));
   };
 
+  const openPicker = (accept: string) => {
+    const rec = readUploads();
+    if (rec.count >= UPLOAD_LIMIT) {
+      const remaining = UPLOAD_WINDOW_MS - (Date.now() - rec.firstAt);
+      toast.error(`Limite de ${UPLOAD_LIMIT} envios atingido. Tente novamente em ${formatRemaining(remaining)}.`);
+      return;
+    }
+    acceptRef.current = accept;
+    if (fileInputRef.current) {
+      fileInputRef.current.accept = accept;
+      fileInputRef.current.value = "";
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const rec = readUploads();
+    const available = UPLOAD_LIMIT - rec.count;
+    if (available <= 0) {
+      const remaining = UPLOAD_WINDOW_MS - (Date.now() - rec.firstAt);
+      toast.error(`Limite atingido. Tente em ${formatRemaining(remaining)}.`);
+      return;
+    }
+    const arr = Array.from(files).slice(0, available);
+    const newOnes: Attachment[] = [];
+    for (const f of arr) {
+      if (f.size > 15 * 1024 * 1024) {
+        toast.error(`${f.name} é maior que 15MB.`);
+        continue;
+      }
+      const dataUrl = await fileToDataUrl(f);
+      const kind: Attachment["kind"] = f.type.startsWith("image/")
+        ? "image"
+        : f.type.startsWith("video/")
+        ? "video"
+        : "file";
+      newOnes.push({ name: f.name, type: f.type, kind, dataUrl, size: f.size });
+    }
+    if (newOnes.length === 0) return;
+    const next: UploadRecord = {
+      count: rec.count + newOnes.length,
+      firstAt: rec.firstAt || Date.now(),
+    };
+    writeUploads(next);
+    setPending((p) => [...p, ...newOnes]);
+    const left = UPLOAD_LIMIT - next.count;
+    toast.success(`Anexado. ${left} envio(s) restante(s) nas próximas 24h.`);
+  };
+
+  const removePending = (idx: number) => {
+    setPending((p) => p.filter((_, i) => i !== idx));
+  };
+
   const send = async (text: string) => {
     const trimmed = text.trim();
-    if (!trimmed || isLoading) return;
+    if ((!trimmed && pending.length === 0) || isLoading) return;
 
     let convId = activeId;
     let baseMessages: Message[] = messages;
 
     if (!convId) {
       convId = newId();
-      const title = trimmed.length > 40 ? trimmed.slice(0, 40) + "…" : trimmed;
+      const titleSrc = trimmed || pending[0]?.name || "Nova conversa";
+      const title = titleSrc.length > 40 ? titleSrc.slice(0, 40) + "…" : titleSrc;
       const conv: Conversation = { id: convId, title, messages: [] };
       setConversations((prev) => [conv, ...prev]);
       setActiveId(convId);
       baseMessages = [];
     }
 
-    const userMsg: Message = { role: "user", content: trimmed };
+    const userAttachments = pending;
+    const userMsg: Message = {
+      role: "user",
+      content: trimmed,
+      attachments: userAttachments.length ? userAttachments : undefined,
+    };
     const next = [...baseMessages, userMsg];
     updateConv(convId, (c) => ({
       ...c,
-      title: c.messages.length === 0 ? (trimmed.length > 40 ? trimmed.slice(0, 40) + "…" : trimmed) : c.title,
+      title:
+        c.messages.length === 0
+          ? ((trimmed || userAttachments[0]?.name || "Nova conversa").slice(0, 40) +
+            ((trimmed || userAttachments[0]?.name || "").length > 40 ? "…" : ""))
+          : c.title,
       messages: [...next, { role: "assistant", content: "" }],
     }));
     setInput("");
+    setPending([]);
     setIsLoading(true);
+
+    // Build payload for the AI: send images as multimodal content; describe other files.
+    const apiMessages = next.map((m) => {
+      if (m.role !== "user" || !m.attachments?.length) {
+        return { role: m.role, content: m.content };
+      }
+      const parts: any[] = [];
+      const nonImageNotes: string[] = [];
+      for (const a of m.attachments) {
+        if (a.kind === "image") {
+          parts.push({ type: "image_url", image_url: { url: a.dataUrl } });
+        } else {
+          nonImageNotes.push(`[${a.kind === "video" ? "Vídeo" : "Arquivo"} anexado: ${a.name} (${a.type || "desconhecido"})]`);
+        }
+      }
+      const textPart = [m.content, ...nonImageNotes].filter(Boolean).join("\n");
+      parts.unshift({ type: "text", text: textPart || "(sem texto)" });
+      return { role: m.role, content: parts };
+    });
 
     try {
       const resp = await fetch(CHAT_URL, {
@@ -74,7 +205,7 @@ const Index = () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ messages: next }),
+        body: JSON.stringify({ messages: apiMessages }),
       });
 
       if (!resp.ok) {
@@ -145,6 +276,7 @@ const Index = () => {
   const startNew = () => {
     setActiveId(null);
     setInput("");
+    setPending([]);
   };
 
   const deleteConv = (id: string) => {
@@ -241,26 +373,86 @@ const Index = () => {
         </div>
 
         <form onSubmit={onSubmit} className="border-t border-border p-4">
-          <div className="max-w-3xl mx-auto relative">
-            <Textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={onKeyDown}
-              placeholder="Envie uma mensagem..."
-              rows={1}
-              className="resize-none pr-12 min-h-[52px] max-h-40 rounded-2xl"
-            />
-            <Button
-              type="submit"
-              size="icon"
-              disabled={!input.trim() || isLoading}
-              className="absolute right-2 bottom-2 h-8 w-8 rounded-lg"
-            >
-              <Send className="w-4 h-4" />
-            </Button>
+          <div className="max-w-3xl mx-auto">
+            {pending.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {pending.map((a, i) => (
+                  <div key={i} className="relative group">
+                    {a.kind === "image" ? (
+                      <img src={a.dataUrl} alt={a.name} className="w-16 h-16 object-cover rounded-lg border border-border" />
+                    ) : a.kind === "video" ? (
+                      <div className="w-16 h-16 rounded-lg border border-border bg-muted flex items-center justify-center">
+                        <VideoIcon className="w-6 h-6 text-muted-foreground" />
+                      </div>
+                    ) : (
+                      <div className="w-16 h-16 rounded-lg border border-border bg-muted flex items-center justify-center">
+                        <FileIcon className="w-6 h-6 text-muted-foreground" />
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removePending(i)}
+                      className="absolute -top-1.5 -right-1.5 bg-background border border-border rounded-full p-0.5 text-muted-foreground hover:text-destructive"
+                      aria-label="Remover anexo"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="relative">
+              <Textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={onKeyDown}
+                placeholder="Envie uma mensagem..."
+                rows={1}
+                className="resize-none pl-12 pr-12 min-h-[52px] max-h-40 rounded-2xl"
+              />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="absolute left-2 bottom-2 h-8 w-8 rounded-lg"
+                    aria-label="Anexar arquivo"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" side="top">
+                  <DropdownMenuItem onClick={() => openPicker("image/*")}>
+                    <ImageIcon className="w-4 h-4 mr-2" /> Foto
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => openPicker("video/*")}>
+                    <VideoIcon className="w-4 h-4 mr-2" /> Vídeo
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => openPicker("*/*")}>
+                    <FileIcon className="w-4 h-4 mr-2" /> Arquivo
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={(e) => handleFiles(e.target.files)}
+              />
+              <Button
+                type="submit"
+                size="icon"
+                disabled={(!input.trim() && pending.length === 0) || isLoading}
+                className="absolute right-2 bottom-2 h-8 w-8 rounded-lg"
+              >
+                <Send className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
           <p className="text-xs text-muted-foreground text-center mt-2">
-            A IA pode cometer erros. Verifique informações importantes.
+            A IA pode cometer erros. Limite de 3 envios de arquivos a cada 24h.
           </p>
         </form>
       </main>
