@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, FormEvent } from "react";
-import { Send, Plus, Sparkles, Moon, Sun, MessageSquare, Trash2, X, Image as ImageIcon, Video as VideoIcon, FileIcon } from "lucide-react";
+import { Send, Plus, Sparkles, Moon, Sun, MessageSquare, Trash2, X, Image as ImageIcon, Video as VideoIcon, FileIcon, Mic, MicOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
