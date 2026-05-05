@@ -200,8 +200,14 @@ const Index = () => {
       {/* Main */}
       <main className="flex-1 flex flex-col min-w-0">
         <header className="border-b border-border px-4 py-3 flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-primary" />
-          <h1 className="font-semibold">IA Brasileira</h1>
+          <button
+            onClick={startNew}
+            className="flex items-center gap-2 hover:opacity-80 transition"
+            aria-label="Nova conversa"
+          >
+            <Sparkles className="w-5 h-5 text-primary" />
+            <h1 className="font-semibold">IA Brasileira</h1>
+          </button>
         </header>
 
         <div ref={scrollRef} className="flex-1 overflow-y-auto">
