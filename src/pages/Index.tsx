@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, FormEvent } from "react";
 import { Send, Plus, Sparkles, Moon, Sun, MessageSquare, Trash2, X, Image as ImageIcon, Video as VideoIcon, FileIcon, Mic, MicOff } from "lucide-react";
+import { AuthButton } from "@/components/AuthButton";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
@@ -321,11 +322,12 @@ const Index = () => {
   return (
     <div className="flex h-screen bg-background text-foreground">
       {/* Sidebar */}
-      <aside className="hidden md:flex flex-col w-64 bg-sidebar-bg border-r border-border p-3">
+      <aside className="hidden md:flex flex-col w-64 bg-sidebar-bg border-r border-border p-3 gap-3">
+        <AuthButton />
         <Button variant="outline" className="w-full justify-start gap-2" onClick={startNew}>
           <Plus className="w-4 h-4" /> Nova conversa
         </Button>
-        <div className="flex-1 mt-4 overflow-y-auto space-y-1">
+        <div className="flex-1 overflow-y-auto space-y-1">
           {conversations.length === 0 ? (
             <div className="text-sm text-muted-foreground px-2">
               Suas conversas aparecerão aqui.
