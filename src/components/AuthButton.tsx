@@ -14,7 +14,7 @@ export function AuthButton() {
   if (loading) return null;
 
   return (
-    <div className="fixed top-4 left-4 z-50">
+    <div className="w-full">
       {user ? (
         <button
           onClick={() => setProfileOpen(true)}
