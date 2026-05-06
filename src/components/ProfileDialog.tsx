@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Upload, LogOut } from "lucide-react";
+import { isProfane } from "@/lib/profanity";
 
 const NAME_MAX = 20;
 const NICK_MAX = 15;
@@ -47,6 +48,8 @@ export function ProfileDialog({ open, onOpenChange }: { open: boolean; onOpenCha
     if (!user) return;
     if (name.length > NAME_MAX) return toast.error(`Nome máx ${NAME_MAX} caracteres`);
     if (nickname.length > NICK_MAX) return toast.error(`Apelido máx ${NICK_MAX} caracteres`);
+    if (isProfane(name)) return toast.error("Nome contém palavras não permitidas.");
+    if (isProfane(nickname)) return toast.error("Apelido contém palavras não permitidas (ex: piroka, pirokão).");
     setBusy(true);
     const { error } = await supabase
       .from("profiles")
