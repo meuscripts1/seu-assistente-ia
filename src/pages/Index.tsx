@@ -64,6 +64,8 @@ const fileToDataUrl = (file: File) =>
     r.readAsDataURL(file);
   });
 
+type Mode = "rapido" | "explicacao" | "tudo";
+
 const Index = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -72,6 +74,8 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [dark, setDark] = useState(true);
   const [listening, setListening] = useState(false);
+  const [mode, setMode] = useState<Mode>("rapido");
+  const [imageMode, setImageMode] = useState(false);
   const recognitionRef = useRef<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
