@@ -223,6 +223,43 @@ const Index = () => {
     setInput("");
     setPending([]);
     setIsLoading(true);
+    if (imageMode) setImageMode(false);
+    const useMode = mode;
+    if (mode === "tudo") setMode("rapido");
+
+    if (wantsImage) {
+      try {
+        const refImage = userAttachments.find((a) => a.kind === "image")?.dataUrl;
+        const { data, error } = await supabase.functions.invoke("image-gen", {
+          body: { prompt: trimmed || "Gere uma imagem com base na referência.", image: refImage },
+        });
+        if (error || !data?.imageUrl) {
+          throw new Error(data?.error || error?.message || "Falha ao gerar imagem");
+        }
+        const assistantAttach: Attachment = {
+          name: "imagem-gerada.png",
+          type: "image/png",
+          kind: "image",
+          dataUrl: data.imageUrl,
+          size: 0,
+        };
+        updateConv(convId!, (cv) => {
+          const copy = [...cv.messages];
+          copy[copy.length - 1] = {
+            role: "assistant",
+            content: data.text || (refImage ? "Pronto! Aqui está a imagem editada." : "Pronto! Aqui está a imagem gerada."),
+            attachments: [assistantAttach],
+          };
+          return { ...cv, messages: copy };
+        });
+      } catch (e: any) {
+        toast.error(e?.message || "Erro ao gerar imagem");
+        updateConv(convId!, (c) => ({ ...c, messages: next }));
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
 
     // Build payload for the AI: send images as multimodal content; describe other files.
     const apiMessages = next.map((m) => {
