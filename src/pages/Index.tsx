@@ -186,6 +186,11 @@ const Index = () => {
     const trimmed = text.trim();
     if ((!trimmed && pending.length === 0) || isLoading) return;
 
+    // Detect image-generation intent: explicit imageMode toggle, OR there's an attached image and the user is asking to change/edit it.
+    const hasAttachedImage = pending.some((a) => a.kind === "image");
+    const editKeywords = /(mud[ae]|alter[ae]|edit[ae]|transform[ae]|coloca|adicion[ae]|remov[ae]|tira|p[oõ]e|deix[ae]|faz[ea]?|gera|cri[ae])/i;
+    const wantsImage = imageMode || (hasAttachedImage && editKeywords.test(trimmed));
+
     let convId = activeId;
     let baseMessages: Message[] = messages;
 
