@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, FormEvent } from "react";
-import { Send, Plus, Sparkles, Moon, Sun, MessageSquare, Trash2, X, Image as ImageIcon, Video as VideoIcon, FileIcon, Mic, MicOff } from "lucide-react";
+import { Send, Plus, Sparkles, Moon, Sun, MessageSquare, Trash2, X, Image as ImageIcon, Video as VideoIcon, FileIcon, Mic, MicOff, Zap, BookOpen, Infinity as InfinityIcon, Wand2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { AuthButton } from "@/components/AuthButton";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
