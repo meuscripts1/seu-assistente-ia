@@ -535,14 +535,20 @@ const Index = () => {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" side="top">
+                  <DropdownMenuItem onClick={() => { setImageMode(true); toast.success("Modo gerar imagem ativo. Descreva a imagem que quer."); }}>
+                    <Wand2 className="w-4 h-4 mr-2" /> Gerar imagem
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => toast.info("Geração de vídeo ainda não disponível neste app.")}>
+                    <VideoIcon className="w-4 h-4 mr-2" /> Gerar vídeo
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => openPicker("image/*")}>
-                    <ImageIcon className="w-4 h-4 mr-2" /> Foto
+                    <ImageIcon className="w-4 h-4 mr-2" /> Enviar foto
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => openPicker("video/*")}>
-                    <VideoIcon className="w-4 h-4 mr-2" /> Vídeo
+                    <VideoIcon className="w-4 h-4 mr-2" /> Enviar vídeo
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => openPicker("*/*")}>
-                    <FileIcon className="w-4 h-4 mr-2" /> Arquivo
+                    <FileIcon className="w-4 h-4 mr-2" /> Enviar arquivo
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
