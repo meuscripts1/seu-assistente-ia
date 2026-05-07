@@ -484,6 +484,35 @@ const Index = () => {
                 ))}
               </div>
             )}
+            <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+              {([
+                { id: "rapido", label: "Rápido", Icon: Zap },
+                { id: "explicacao", label: "Explicação", Icon: BookOpen },
+                { id: "tudo", label: "Tudo", Icon: InfinityIcon },
+              ] as const).map(({ id, label, Icon }) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setMode(id)}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs border transition ${
+                    mode === id
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background text-muted-foreground border-border hover:bg-accent"
+                  }`}
+                >
+                  <Icon className="w-3 h-3" />
+                  {label}
+                </button>
+              ))}
+              {imageMode && (
+                <span className="flex items-center gap-1 px-3 py-1 rounded-full text-xs bg-accent text-accent-foreground">
+                  <Wand2 className="w-3 h-3" /> Gerar imagem
+                  <button type="button" onClick={() => setImageMode(false)} className="ml-1 hover:text-destructive">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+            </div>
             <div className="relative">
               <Textarea
                 value={input}
