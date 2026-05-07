@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, FormEvent } from "react";
-import { Send, Plus, Sparkles, Moon, Sun, MessageSquare, Trash2, X, Image as ImageIcon, Video as VideoIcon, FileIcon, Mic, MicOff } from "lucide-react";
+import { Send, Plus, Sparkles, Moon, Sun, MessageSquare, Trash2, X, Image as ImageIcon, Video as VideoIcon, FileIcon, Mic, MicOff, Zap, BookOpen, Infinity as InfinityIcon, Wand2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { AuthButton } from "@/components/AuthButton";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -63,6 +64,8 @@ const fileToDataUrl = (file: File) =>
     r.readAsDataURL(file);
   });
 
+type Mode = "rapido" | "explicacao" | "tudo";
+
 const Index = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -71,6 +74,8 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [dark, setDark] = useState(true);
   const [listening, setListening] = useState(false);
+  const [mode, setMode] = useState<Mode>("rapido");
+  const [imageMode, setImageMode] = useState(false);
   const recognitionRef = useRef<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -181,6 +186,11 @@ const Index = () => {
     const trimmed = text.trim();
     if ((!trimmed && pending.length === 0) || isLoading) return;
 
+    // Detect image-generation intent: explicit imageMode toggle, OR there's an attached image and the user is asking to change/edit it.
+    const hasAttachedImage = pending.some((a) => a.kind === "image");
+    const editKeywords = /(mud[ae]|alter[ae]|edit[ae]|transform[ae]|coloca|adicion[ae]|remov[ae]|tira|p[oõ]e|deix[ae]|faz[ea]?|gera|cri[ae])/i;
+    const wantsImage = imageMode || (hasAttachedImage && editKeywords.test(trimmed));
+
     let convId = activeId;
     let baseMessages: Message[] = messages;
 
@@ -213,6 +223,43 @@ const Index = () => {
     setInput("");
     setPending([]);
     setIsLoading(true);
+    if (imageMode) setImageMode(false);
+    const useMode = mode;
+    if (mode === "tudo") setMode("rapido");
+
+    if (wantsImage) {
+      try {
+        const refImage = userAttachments.find((a) => a.kind === "image")?.dataUrl;
+        const { data, error } = await supabase.functions.invoke("image-gen", {
+          body: { prompt: trimmed || "Gere uma imagem com base na referência.", image: refImage },
+        });
+        if (error || !data?.imageUrl) {
+          throw new Error(data?.error || error?.message || "Falha ao gerar imagem");
+        }
+        const assistantAttach: Attachment = {
+          name: "imagem-gerada.png",
+          type: "image/png",
+          kind: "image",
+          dataUrl: data.imageUrl,
+          size: 0,
+        };
+        updateConv(convId!, (cv) => {
+          const copy = [...cv.messages];
+          copy[copy.length - 1] = {
+            role: "assistant",
+            content: data.text || (refImage ? "Pronto! Aqui está a imagem editada." : "Pronto! Aqui está a imagem gerada."),
+            attachments: [assistantAttach],
+          };
+          return { ...cv, messages: copy };
+        });
+      } catch (e: any) {
+        toast.error(e?.message || "Erro ao gerar imagem");
+        updateConv(convId!, (c) => ({ ...c, messages: next }));
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
 
     // Build payload for the AI: send images as multimodal content; describe other files.
     const apiMessages = next.map((m) => {
@@ -240,7 +287,7 @@ const Index = () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ messages: apiMessages }),
+        body: JSON.stringify({ messages: apiMessages, mode: useMode }),
       });
 
       if (!resp.ok) {
@@ -437,6 +484,35 @@ const Index = () => {
                 ))}
               </div>
             )}
+            <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+              {([
+                { id: "rapido", label: "Rápido", Icon: Zap },
+                { id: "explicacao", label: "Explicação", Icon: BookOpen },
+                { id: "tudo", label: "Tudo", Icon: InfinityIcon },
+              ] as const).map(({ id, label, Icon }) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setMode(id)}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs border transition ${
+                    mode === id
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background text-muted-foreground border-border hover:bg-accent"
+                  }`}
+                >
+                  <Icon className="w-3 h-3" />
+                  {label}
+                </button>
+              ))}
+              {imageMode && (
+                <span className="flex items-center gap-1 px-3 py-1 rounded-full text-xs bg-accent text-accent-foreground">
+                  <Wand2 className="w-3 h-3" /> Gerar imagem
+                  <button type="button" onClick={() => setImageMode(false)} className="ml-1 hover:text-destructive">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+            </div>
             <div className="relative">
               <Textarea
                 value={input}
@@ -459,14 +535,20 @@ const Index = () => {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" side="top">
+                  <DropdownMenuItem onClick={() => { setImageMode(true); toast.success("Modo gerar imagem ativo. Descreva a imagem que quer."); }}>
+                    <Wand2 className="w-4 h-4 mr-2" /> Gerar imagem
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => toast.info("Geração de vídeo ainda não disponível neste app.")}>
+                    <VideoIcon className="w-4 h-4 mr-2" /> Gerar vídeo
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => openPicker("image/*")}>
-                    <ImageIcon className="w-4 h-4 mr-2" /> Foto
+                    <ImageIcon className="w-4 h-4 mr-2" /> Enviar foto
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => openPicker("video/*")}>
-                    <VideoIcon className="w-4 h-4 mr-2" /> Vídeo
+                    <VideoIcon className="w-4 h-4 mr-2" /> Enviar vídeo
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => openPicker("*/*")}>
-                    <FileIcon className="w-4 h-4 mr-2" /> Arquivo
+                    <FileIcon className="w-4 h-4 mr-2" /> Enviar arquivo
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
