@@ -503,7 +503,7 @@ const Index = () => {
                 <button
                   key={id}
                   type="button"
-                  onClick={() => setMode(id)}
+                  onClick={() => { setMode(id); if (id === "tudo") setTudoUsed(false); }}
                   className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs border transition ${
                     mode === id
                       ? "bg-primary text-primary-foreground border-primary"
