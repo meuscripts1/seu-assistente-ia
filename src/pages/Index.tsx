@@ -266,7 +266,6 @@ const Index = () => {
         updateConv(convId!, (c) => ({ ...c, messages: next }));
       } finally {
         setIsLoading(false);
-        if (useMode === "tudo") setMode("rapido");
       }
       return;
     }
