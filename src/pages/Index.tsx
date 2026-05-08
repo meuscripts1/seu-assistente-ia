@@ -75,7 +75,12 @@ const Index = () => {
   const [dark, setDark] = useState(true);
   const [listening, setListening] = useState(false);
   const [mode, setMode] = useState<Mode>("rapido");
-  const [tudoUsed, setTudoUsed] = useState(false);
+  const [tudoUsedAt, setTudoUsedAt] = useState<number | null>(() => {
+    const v = localStorage.getItem("tudoUsedAt");
+    return v ? Number(v) : null;
+  });
+  const TUDO_COOLDOWN_MS = 5 * 24 * 60 * 60 * 1000;
+  const tudoLocked = tudoUsedAt !== null && Date.now() - tudoUsedAt < TUDO_COOLDOWN_MS;
   const [imageMode, setImageMode] = useState(false);
   const recognitionRef = useRef<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
