@@ -225,7 +225,16 @@ const Index = () => {
     setPending([]);
     setIsLoading(true);
     if (imageMode) setImageMode(false);
-    const useMode = mode;
+    let useMode: Mode = mode;
+    if (mode === "tudo") {
+      if (tudoUsed) {
+        useMode = "rapido";
+        setMode("rapido");
+        setTudoUsed(false);
+      } else {
+        setTudoUsed(true);
+      }
+    }
 
     if (wantsImage) {
       try {
