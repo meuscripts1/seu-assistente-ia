@@ -505,7 +505,17 @@ const Index = () => {
                 <button
                   key={id}
                   type="button"
-                  onClick={() => { setMode(id); if (id === "tudo") setTudoUsed(false); }}
+                  onClick={() => {
+                    if (id === "tudo" && tudoLocked) {
+                      const remaining = Math.ceil((TUDO_COOLDOWN_MS - (Date.now() - (tudoUsedAt ?? 0))) / (24 * 60 * 60 * 1000));
+                      toast.error(`Você já usou o modo Tudo, espere ${remaining} ${remaining === 1 ? "dia" : "dias"} para usar novamente!`, {
+                        position: "bottom-center",
+                        className: "tudo-locked-toast",
+                      });
+                      return;
+                    }
+                    setMode(id);
+                  }}
                   className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs border transition ${
                     mode === id
                       ? "bg-primary text-primary-foreground border-primary"
