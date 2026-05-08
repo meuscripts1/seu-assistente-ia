@@ -225,7 +225,6 @@ const Index = () => {
     setIsLoading(true);
     if (imageMode) setImageMode(false);
     const useMode = mode;
-    if (mode === "tudo") setMode("rapido");
 
     if (wantsImage) {
       try {
@@ -257,6 +256,7 @@ const Index = () => {
         updateConv(convId!, (c) => ({ ...c, messages: next }));
       } finally {
         setIsLoading(false);
+        if (useMode === "tudo") setMode("rapido");
       }
       return;
     }
@@ -340,6 +340,7 @@ const Index = () => {
       updateConv(convId, (c) => ({ ...c, messages: next }));
     } finally {
       setIsLoading(false);
+      if (useMode === "tudo") setMode("rapido");
     }
   };
 
