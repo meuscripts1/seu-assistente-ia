@@ -225,7 +225,6 @@ const Index = () => {
     setIsLoading(true);
     if (imageMode) setImageMode(false);
     const useMode = mode;
-    if (mode === "tudo") setMode("rapido");
 
     if (wantsImage) {
       try {
