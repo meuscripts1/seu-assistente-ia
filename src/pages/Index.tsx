@@ -232,13 +232,10 @@ const Index = () => {
     if (imageMode) setImageMode(false);
     let useMode: Mode = mode;
     if (mode === "tudo") {
-      if (tudoUsed) {
-        useMode = "rapido";
-        setMode("rapido");
-        setTudoUsed(false);
-      } else {
-        setTudoUsed(true);
-      }
+      const now = Date.now();
+      localStorage.setItem("tudoUsedAt", String(now));
+      setTudoUsedAt(now);
+      setMode("rapido");
     }
 
     if (wantsImage) {
