@@ -98,3 +98,18 @@
   .prose-chat a { @apply text-primary underline; }
   .prose-chat strong { @apply font-semibold; }
 }
+
+@keyframes tudo-slide-up {
+  from { transform: translateY(120%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+[data-sonner-toast].tudo-locked-toast {
+  background: hsl(var(--destructive)) !important;
+  color: hsl(var(--destructive-foreground)) !important;
+  border: 1px solid hsl(var(--destructive)) !important;
+  font-size: 0.8rem !important;
+  padding: 0.5rem 0.75rem !important;
+  min-height: auto !important;
+  width: auto !important;
+  animation: tudo-slide-up 0.35s ease-out;
+}

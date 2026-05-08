@@ -75,7 +75,12 @@ const Index = () => {
   const [dark, setDark] = useState(true);
   const [listening, setListening] = useState(false);
   const [mode, setMode] = useState<Mode>("rapido");
-  const [tudoUsed, setTudoUsed] = useState(false);
+  const [tudoUsedAt, setTudoUsedAt] = useState<number | null>(() => {
+    const v = localStorage.getItem("tudoUsedAt");
+    return v ? Number(v) : null;
+  });
+  const TUDO_COOLDOWN_MS = 5 * 24 * 60 * 60 * 1000;
+  const tudoLocked = tudoUsedAt !== null && Date.now() - tudoUsedAt < TUDO_COOLDOWN_MS;
   const [imageMode, setImageMode] = useState(false);
   const recognitionRef = useRef<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -227,13 +232,10 @@ const Index = () => {
     if (imageMode) setImageMode(false);
     let useMode: Mode = mode;
     if (mode === "tudo") {
-      if (tudoUsed) {
-        useMode = "rapido";
-        setMode("rapido");
-        setTudoUsed(false);
-      } else {
-        setTudoUsed(true);
-      }
+      const now = Date.now();
+      localStorage.setItem("tudoUsedAt", String(now));
+      setTudoUsedAt(now);
+      setMode("rapido");
     }
 
     if (wantsImage) {
@@ -503,7 +505,17 @@ const Index = () => {
                 <button
                   key={id}
                   type="button"
-                  onClick={() => { setMode(id); if (id === "tudo") setTudoUsed(false); }}
+                  onClick={() => {
+                    if (id === "tudo" && tudoLocked) {
+                      const remaining = Math.ceil((TUDO_COOLDOWN_MS - (Date.now() - (tudoUsedAt ?? 0))) / (24 * 60 * 60 * 1000));
+                      toast.error(`Você já usou o modo Tudo, espere ${remaining} ${remaining === 1 ? "dia" : "dias"} para usar novamente!`, {
+                        position: "bottom-center",
+                        className: "tudo-locked-toast",
+                      });
+                      return;
+                    }
+                    setMode(id);
+                  }}
                   className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs border transition ${
                     mode === id
                       ? "bg-primary text-primary-foreground border-primary"
