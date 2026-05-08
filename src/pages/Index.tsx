@@ -75,6 +75,7 @@ const Index = () => {
   const [dark, setDark] = useState(true);
   const [listening, setListening] = useState(false);
   const [mode, setMode] = useState<Mode>("rapido");
+  const [tudoUsed, setTudoUsed] = useState(false);
   const [imageMode, setImageMode] = useState(false);
   const recognitionRef = useRef<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
