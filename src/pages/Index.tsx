@@ -75,6 +75,7 @@ const Index = () => {
   const [dark, setDark] = useState(true);
   const [listening, setListening] = useState(false);
   const [mode, setMode] = useState<Mode>("rapido");
+  const [tudoUsed, setTudoUsed] = useState(false);
   const [imageMode, setImageMode] = useState(false);
   const recognitionRef = useRef<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -224,7 +225,16 @@ const Index = () => {
     setPending([]);
     setIsLoading(true);
     if (imageMode) setImageMode(false);
-    const useMode = mode;
+    let useMode: Mode = mode;
+    if (mode === "tudo") {
+      if (tudoUsed) {
+        useMode = "rapido";
+        setMode("rapido");
+        setTudoUsed(false);
+      } else {
+        setTudoUsed(true);
+      }
+    }
 
     if (wantsImage) {
       try {
@@ -256,7 +266,6 @@ const Index = () => {
         updateConv(convId!, (c) => ({ ...c, messages: next }));
       } finally {
         setIsLoading(false);
-        if (useMode === "tudo") setMode("rapido");
       }
       return;
     }
@@ -340,7 +349,7 @@ const Index = () => {
       updateConv(convId, (c) => ({ ...c, messages: next }));
     } finally {
       setIsLoading(false);
-      if (useMode === "tudo") setMode("rapido");
+      
     }
   };
 
@@ -494,7 +503,7 @@ const Index = () => {
                 <button
                   key={id}
                   type="button"
-                  onClick={() => setMode(id)}
+                  onClick={() => { setMode(id); if (id === "tudo") setTudoUsed(false); }}
                   className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs border transition ${
                     mode === id
                       ? "bg-primary text-primary-foreground border-primary"
